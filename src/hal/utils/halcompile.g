@@ -140,6 +140,7 @@ def parse(filename):
     a, b = f.split("\n;;\n", 1)
     p = _parse('File', a + "\n\n", filename)
     if not p: raise SystemExit(1)
+    warn_mangled_names(filename)
     if require_license:
         if not finddoc('license'):
             raise SystemExit("%s:0: License not specified" % filename)
@@ -156,13 +157,19 @@ deprecated = ['s32', 'u32']
 
 def initialize():
     global functions, params, pins, comp_name, names, docs, variables
-    global modparams, includes
+    global modparams, includes, hal_names, mangled_names
 
     functions = []; params = []; pins = []; options = {}; variables = []
     modparams = []; docs = []; includes = [];
     comp_name = None
 
     names = {}
+    hal_names = {}
+    mangled_names = []
+
+# Cleared by -N (--no-name-warnings); the in-tree build sets it for components
+# whose HAL names are already known to be correct.
+warn_hal_names = True
 
 def Warn(msg, *args):
     if args:
@@ -224,10 +231,40 @@ def check_name_ok(name):
     if name in names:
         Error("Duplicate item name %s" % name)
 
+HALNAME_DOC = ("see HALNAME under 'Syntax' in the Halcompile HAL Component "
+               "Generator documentation, "
+               "https://linuxcnc.org/docs/html/hal/comp.html")
+
+def check_hal_name(kind, name):
+    """A declaration is a C identifier, but it is exported under a mangled HAL
+    identifier.  check_name_ok() only compares declared names, so two
+    declarations that mangle to one HAL name compile cleanly and fail later, at
+    loadrt, with "HAL: ERROR: duplicate variable"."""
+    if name == "_": return              # the unnamed singleton function
+    hal_name = to_hal(name)
+    if (kind, hal_name) in hal_names:
+        Error("'%s' and '%s' both export the HAL name '%s'; %s"
+              % (hal_names[(kind, hal_name)], name, hal_name, HALNAME_DOC))
+    hal_names[(kind, hal_name)] = name
+    if hal_name != name:
+        mangled_names.append((name, hal_name))
+
+def warn_mangled_names(filename):
+    if not mangled_names or not warn_hal_names: return
+    # undo the printf conversion to_hal() applies to array names
+    unarray = lambda s: re.sub(r"%0(\d+)d", lambda m: "#" * int(m.group(1)), s)
+    shown = ", ".join("%s -> %s" % (n, unarray(h)) for n, h in mangled_names[:3])
+    if len(mangled_names) > 3:
+        shown += ", ... (%d more)" % (len(mangled_names) - 3)
+    print("%s:0: Warning: %d declared name(s) are exported under a different "
+          "HAL name: %s. Use the HAL name in HAL files, halcmd and halshow; %s"
+          % (filename, len(mangled_names), shown, HALNAME_DOC), file=sys.stderr)
+
 def pin(name, type_, array, dir_, doc, value, personality):
     checkarray(name, array)
     type_ = type2type(type_)
     check_name_ok(name)
+    check_hal_name('pin', name)
     docs.append(('pin', name, type_, array, dir_, doc, value, personality))
     names[name] = None
     pins.append((name, type_, array, dir_, value, personality))
@@ -236,12 +273,14 @@ def param(name, type_, array, dir_, doc, value, personality):
     checkarray(name, array)
     type_ = type2type(type_)
     check_name_ok(name)
+    check_hal_name('pin', name)         # pins and params share a namespace
     docs.append(('param', name, type_, array, dir_, doc, value, personality))
     names[name] = None
     params.append((name, type_, array, dir_, value, personality))
 
 def function(name, fp, doc):
     check_name_ok(name)
+    check_hal_name('function', name)
     docs.append(('funct', name, fp, doc))
     names[name] = None
     functions.append((name, fp))
@@ -1183,6 +1222,10 @@ Usage:
 Option to set maximum 'personalities' items:
     --personalities=integer_value   (default is %(dflt)d)
 
+Option to suppress the warning about declared names that are exported under a
+different HAL name:
+    -N, --no-name-warnings
+
 Options to add compile and link flags (only for userspace, only for .c files)
     --extra-compile-args="-I/usr/include/..."
     --extra-link-args="-l..."
@@ -1199,6 +1242,7 @@ def main():
     require_license = True
     global require_unix_line_endings
     require_unix_line_endings = False
+    global warn_hal_names
     mode = PREPROCESS
     adoc = False
     keepadoc = None
@@ -1207,8 +1251,9 @@ def main():
     global options
     options = {}
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "UluijJcpdak:o:h?P:",
-                           ['unix', 'install', 'compile', 'preprocess', 'outfile=',
+        opts, args = getopt.getopt(sys.argv[1:], "NUluijJcpdak:o:h?P:",
+                           ['unix', 'no-name-warnings', 'install', 'compile',
+                            'preprocess', 'outfile=',
                             'document', 'adoc', 'keep-adoc=', 'help', 'userspace', 'install-doc',
                             'view-doc', 'require-license', 'print-modinc',
                             'personalities=', "extra-compile-args=",
@@ -1218,6 +1263,8 @@ def main():
     for k, v in opts:
         if k in ("-U", "--unix"):
             require_unix_line_endings = True
+        if k in ("-N", "--no-name-warnings"):
+            warn_hal_names = False
         if k in ("-u", "--userspace"):
             userspace = True
         if k in ("-i", "--install"):

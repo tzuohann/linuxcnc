@@ -227,6 +227,18 @@ A trailing "_" is retained, so that HAL identifiers which would otherwise collid
 |x.##    | x(MM)        | x.MM
 |===
 
+[NOTE]
+====
+The HAL identifier, not the declared HALNAME, is what HAL files, `halcmd` and
+`halshow` see. `halcompile` prints one warning per file listing the names that
+differ, suppressed by the *-N* (*--no-name-warnings*) option.
+
+Two declarations that produce the same HAL identifier -- 'x_y_z' and 'x_y_z_'
+in the table above -- are rejected by `halcompile`, because they would
+otherwise compile and then fail at `loadrt` with "HAL: ERROR: duplicate
+variable".
+====
+
 * 'if CONDITION' - An expression involving the variable 'personality' which is nonzero when the pin or parameter should be created.
 
 * 'SIZE' - A number that gives the size of an array. The array items are numbered from 0 to 'SIZE'-1.

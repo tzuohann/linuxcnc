@@ -1,0 +1,4 @@
+halname_mangled.comp:0: Warning: 1 declared name(s) are exported under a different HAL name: my_pin -> my-pin. Use the HAL name in HAL files, halcmd and halshow; see HALNAME under 'Syntax' in the Halcompile HAL Component Generator documentation, https://linuxcnc.org/docs/html/hal/comp.html
+halname_collision.comp:4:18: 'x_y' and 'x_y_' both export the HAL name 'x-y'; see HALNAME under 'Syntax' in the Halcompile HAL Component Generator documentation, https://linuxcnc.org/docs/html/hal/comp.html
+>  pin out bit x_y_;
+>                   ^
