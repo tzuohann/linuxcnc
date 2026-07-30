@@ -65,12 +65,12 @@ COMP_DRIVER_MANPAGE_ADOCS := $(patsubst hal/drivers/%.comp, objects/man/man9/%.9
 $(COMP_MANPAGE_ADOCS): objects/man/man9/%.9.adoc: hal/components/%.comp ../bin/halcompile
 	$(ECHO) Extracting adoc manpage $(notdir $@)
 	@mkdir -p $(dir $@)
-	$(Q)../bin/halcompile -U --adoc -o $@ $<
+	$(Q)../bin/halcompile -N -U --adoc -o $@ $<
 
 $(COMP_DRIVER_MANPAGE_ADOCS): objects/man/man9/%.9.adoc: hal/drivers/%.comp ../bin/halcompile
 	$(ECHO) Extracting adoc manpage $(notdir $@)
 	@mkdir -p $(dir $@)
-	$(Q)../bin/halcompile -U --adoc -o $@ $<
+	$(Q)../bin/halcompile -N -U --adoc -o $@ $<
 
 # Build troff from the adoc via asciidoctor.  Used to be halcompile
 # emitting troff directly with sed post-processing to escape .als / .URL
@@ -94,10 +94,12 @@ objects/%.mak: %.comp hal/components/Submakefile
 	$(Q)echo ../rtlib/$(notdir $*)$(MODULE_EXT): objects/rtobjects/$*.o >> $@.tmp
 	$(Q)mv -f $@.tmp $@
 
+# -N: the HAL names of in-tree components are deliberate, so skip the
+# reminder that declared names are mangled when they are exported.
 objects/%.c: %.comp ../bin/halcompile
 	$(ECHO) "Preprocessing $(notdir $<)"
 	@mkdir -p $(dir $@)
-	$(Q)../bin/halcompile -U -o $@ $<
+	$(Q)../bin/halcompile -N -U -o $@ $<
 
 modules: $(patsubst %.comp, objects/%.c, $(COMPS) $(COMP_DRIVERS))
 

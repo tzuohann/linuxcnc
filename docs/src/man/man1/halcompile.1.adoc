@@ -57,6 +57,9 @@ this option and it has no effect when only asciidoc formatted documentation is
 requested using the *-a* or *--adoc* option.
 *-l*, *--require-license*::
 Obsolete. The component is always required to have a *licence* tag.
+*-N*, *--no-name-warnings*::
+Do not warn about declared names that are exported under a different HAL name.
+See *NAMES* below.
 *-o* _file_, *--outfile*=_file_::
 Write output to _file_. Can _only_ be used with *--preprocess*, *--adoc* and
 *--document* processing.
@@ -96,6 +99,22 @@ Extra arguments passed to the linker.
   files in the proper system directory (the *--install* flag), which may
   require _sudo_ to write to system directories.
 * Preprocess *.comp* files into *.c* files (the *--preprocess* flag)
+
+== NAMES
+
+A name declared in a *.comp* file is a C identifier, but it is exported under a
+mangled HAL identifier: underscores become dashes, and a trailing dash or
+period is removed. A pin declared *pin in float my_input* is therefore reached
+from HAL as *component.N.my-input*, not *component.N.my_input*, and a component
+loaded with *loadrt my_comp* exports its pins under *my-comp.N.*.
+
+*halcompile* prints one warning per file listing the names this applies to;
+pass *-N* to suppress it. Two declarations that mangle to the same HAL name
+(for example *x_y* and *x_y_*) are rejected, since they would otherwise be
+accepted here and fail later at *loadrt* with "HAL: ERROR: duplicate variable".
+
+See HALNAME under _Syntax_ in the _Halcompile HAL Component Generator_
+documentation for the full mangling rules.
 
 == SEE ALSO
 
